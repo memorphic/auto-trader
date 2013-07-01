@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, NoMonomorphismRestriction, TemplateHaskell #-} 
+{-# LANGUAGE OverloadedStrings, NoMonomorphismRestriction #-} 
 
 -- | Used for loading key and secret from filesystem
 --

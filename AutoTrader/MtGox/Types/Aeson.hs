@@ -6,30 +6,57 @@ import Control.Monad
 import Data.Aeson 
 import AutoTrader.MtGox.Types
 
+{-
+instance FromJSON MtGoxTickerFull where
+     parseJSON (Object o) = do
+                 dat         <- join $ parseJSON <$> o .: "data"
+                 let getPrice name = join $ parseJSON <$> dat .: name 
+                 prHigh      <- getPrice "high"
+                 prLow       <- getPrice "low"
+                 prLast      <- getPrice "last"
+                 prLastAll   <- getPrice "last_all"
+                 prBuy       <- getPrice "buy"
+                 prSell      <- getPrice "sell"
+                 prLastOrig  <- getPrice "last_orig"
+                 prLastLocal <- getPrice "last_local"
+                 prAvg       <- getPrice "avg"    
+                 prVWAP      <- getPrice "vwap"   
+                 time        <- read <$> dat .: "now"   
+                 return $ MtGoxTickerFull 
+                            { _tkHigh           = prHigh
+                            , _tkLow            = prLow
+                            , _tkLast           = prLast
+                            , _tkLastAll        = prLastAll
+                            , _tkBuy            = prBuy
+                            , _tkSell           = prSell
+                            , _tkLastOrig       = prLastOrig
+                            , _tkLastLocal      = prLastLocal
+                            , _tkAvg            = prAvg
+                            , _tkVolWeightedAvg = prVWAP
+                            , _tkLastUpdateTime = time
+                            }
+          
+     parseJSON _ = fail "Failed to parse result"
+-}
+
 instance FromJSON MtGoxTicker where
      parseJSON (Object o) = do
-                 dat <- join $ parseJSON <$> o .: "data"
+                 dat         <- join $ parseJSON <$> o .: "data"
                  let getPrice name = join $ parseJSON <$> dat .: name 
-                 prHigh <- getPrice "high"
-                 prLow  <- getPrice "low"
-                 prLast <- getPrice "last"
-                 prLastAll <- getPrice "last_all"
-                 prBuy  <- getPrice "buy"
-                 prSell <- getPrice "sell"
-                 prLastOrig <- getPrice "last_orig"
-                 prAvg <- getPrice "avg"    
-                 prVWAP <- getPrice "vwap"   
-                 time <- read <$> dat .: "now"   
+                 prLast      <- getPrice "last"
+                 prLastAll   <- getPrice "last_all"
+                 prBuy       <- getPrice "buy"
+                 prSell      <- getPrice "sell"
+                 prLastOrig  <- getPrice "last_orig"
+                 prLastLocal <- getPrice "last_local"
+                 time        <- read <$> dat .: "now"   
                  return $ MtGoxTicker 
-                            { _tkHigh = prHigh
-                            , _tkLow = prLow
-                            , _tkLast = prLast
-                            , _tkLastAll = prLastAll
-                            , _tkBuy = prBuy
-                            , _tkSell = prSell
-                            , _tkLastOrig = prLastOrig
-                            , _tkAvg = prAvg
-                            , _tkVolWeightedAvg = prVWAP
+                            { _tkLast           = prLast
+                            , _tkLastAll        = prLastAll
+                            , _tkBuy            = prBuy
+                            , _tkSell           = prSell
+                            , _tkLastOrig       = prLastOrig
+                            , _tkLastLocal      = prLastLocal
                             , _tkLastUpdateTime = time
                             }
           
@@ -43,9 +70,9 @@ instance FromJSON MtGoxPrice where
                  display      <- o .: "display"
                  displayShort <- o .: "display_short"
                  return $ MtGoxPrice 
-                           { _prCurrency = curr
-                           , _prValue = val
-                           , _prDisplay = display
+                           { _prCurrency     = curr
+                           , _prValue        = val
+                           , _prDisplay      = display
                            , _prDisplayShort = displayShort
                            }
 
