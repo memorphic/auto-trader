@@ -7,14 +7,7 @@ module AutoTrader.MtGox
 ) 
 where
 
--- | hide record accessor functions as they are redundant due to lenses
-import AutoTrader.MtGox.Types hiding ( _tkLast
-                                     , _tkLastAll
-                                     , _tkBuy
-                                     , _tkSell
-                                     , _tkLastLocal
-                                     , _tkLastOrig
-                                     , _tkLastUpdateTime 
-                                     )
+-- | Don't import/re-export record accessors as they are redundant due to lenses
+import AutoTrader.MtGox.Types ( MtGoxTicker, MtGoxPrice )
 import AutoTrader.MtGox.Types.Lenses
 import AutoTrader.MtGox.Types.Instances
