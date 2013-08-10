@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 
 module AutoTrader.MtGox.Http 
 ( 
@@ -42,7 +42,7 @@ liveTicker f = do
    
 
 retryOnTimeout :: IO a -> IO a
-retryOnTimeout action = catch action $ \ResponseTimeout -> 
+retryOnTimeout action = catch action $ \(_ :: HttpException) -> 
                             do putStrLn "Timed out. Trying again."
                                threadDelay 5000000
                                action 
