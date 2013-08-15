@@ -3,8 +3,6 @@
 module AutoTrader.MtGox.Http 
 ( 
     httpTicker
-  , PriceHandler
-  , TickerApp 
 )
 where
 
@@ -12,7 +10,7 @@ where
 import AutoTrader.MtGox
 
 import Network.HTTP.Conduit
-import Data.Aeson (decode)
+import Data.Aeson 
 import Control.Applicative
 import Control.Monad (when, forever)
 import Control.Lens
@@ -20,25 +18,19 @@ import Control.Concurrent (threadDelay)
 import Control.Exception (handle, catch)
 import Control.Monad.State
 
-data MtGoxLevel = MtGoxFull | MtGoxFast
-
-tickerURL :: MtGoxLevel -> String
-tickerURL MtGoxFull = "https://data.mtgox.com/api/2/BTCUSD/money/ticker" 
-tickerURL MtGoxFast = "https://data.mtgox.com/api/2/BTCUSD/money/ticker_fast" 
+tickerURL = "https://data.mtgox.com/api/2/BTCUSD/money/ticker_fast" 
 
 type TickerApp = StateT (Maybe MtGoxTicker) IO ()
-type PriceHandler = Maybe MtGoxTicker -> MtGoxTicker -> IO ()
-
 
 liveTicker :: (Maybe MtGoxTicker -> MtGoxTicker -> IO ()) -> TickerApp
 liveTicker f = do
-    tickerData  <- liftIO . retryOnTimeout . simpleHttp $ tickerURL MtGoxFast
-    let mTicker =  decode tickerData
+    tickerTxt <- liftIO . retryOnTimeout . simpleHttp $ tickerURL
+    let mTicker =  tickerData <$> decode tickerTxt
     prev        <- get
-    put mTicker
-    liftIO $ case mTicker of
-        Nothing     -> putStrLn "Error: Could not decode response."
-        Just ticker -> when (mTicker /= prev) (f prev ticker)
+    case mTicker of
+        Nothing     -> liftIO $ putStrLn "Error: Could not decode response."
+        Just ticker -> do put mTicker
+                          liftIO $ when (mTicker /= prev) (f prev ticker)
    
 
 retryOnTimeout :: IO a -> IO a
@@ -50,6 +42,14 @@ retryOnTimeout action = catch action $ \(_ :: HttpException) ->
 
 httpTicker :: PriceHandler -> IO ()
 httpTicker handler = evalStateT app Nothing
-                       where app = forever $ do
-                                       liveTicker handler
-                                       liftIO $ threadDelay 2000000
+                       where app = do liftIO $ putStrLn "Starting HTTP polling."
+                                      forever $ do
+                                            liveTicker handler
+                                            liftIO $ threadDelay 2000000
+
+
+-- This data type and instance are a bit annoying. It's here because the ticker is wrapped in
+-- different object wrapper, depending on if it's polling or websocket
+data PollTickerResult = PollTickerResult { tickerData :: MtGoxTicker }
+instance FromJSON PollTickerResult where
+    parseJSON (Object o) = PollTickerResult <$> o .: "data"

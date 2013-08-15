@@ -41,15 +41,14 @@ instance FromJSON MtGoxTickerFull where
 
 instance FromJSON MtGoxTicker where
      parseJSON (Object o) = do
-                 dat         <- join $ parseJSON <$> o .: "data"
-                 let getPrice name = join $ parseJSON <$> dat .: name 
+                 let getPrice name = join $ parseJSON <$> o .: name 
                  prLast      <- getPrice "last"
                  prLastAll   <- getPrice "last_all"
                  prBuy       <- getPrice "buy"
                  prSell      <- getPrice "sell"
                  prLastOrig  <- getPrice "last_orig"
                  prLastLocal <- getPrice "last_local"
-                 time        <- read <$> dat .: "now"   
+                 time        <- read <$> o .: "now"   
                  return $ MtGoxTicker 
                             { _tkLast           = prLast
                             , _tkLastAll        = prLastAll
