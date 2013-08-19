@@ -4,7 +4,9 @@
 module AutoTrader.MtGox.Types where
 
 import Data.Text.Lazy
-
+import Data.Default
+import AutoTrader.MtGox.Http.Types
+import AutoTrader.MtGox.WebSocket.Types
 
 data MtGoxTicker = MtGoxTicker
   { _tkLast           :: MtGoxPrice
@@ -18,24 +20,6 @@ data MtGoxTicker = MtGoxTicker
   deriving (Show, Eq)
 
 
-{-
-data MtGoxTickerFull = MtGoxTickerFull
-  { _tkHigh           :: MtGoxPrice
-  , _tkLow            :: MtGoxPrice
-  , _tkLast           :: MtGoxPrice
-  , _tkLastAll        :: MtGoxPrice
-  , _tkBuy            :: MtGoxPrice
-  , _tkSell           :: MtGoxPrice
-  , _tkLastOrig       :: MtGoxPrice  
-  , _tkLastLocal      :: MtGoxPrice  
-  , _tkAvg            :: MtGoxPrice
-  , _tkVolWeightedAvg :: MtGoxPrice
-  , _tkLastUpdateTime :: Integer
-  } 
-  deriving (Show, Eq)
--}
-
-
 data MtGoxPrice = MtGoxPrice
   { _prCurrency     :: Text
   , _prValue        :: Double
@@ -45,4 +29,23 @@ data MtGoxPrice = MtGoxPrice
   deriving (Show, Eq)
 
 
+-- | TODO: after full monad impl, this won't be needed
+type PriceHandler = Maybe MtGoxTicker -> MtGoxTicker -> IO ()
 
+-- TODO: Add constructor for 'both'
+data MtGoxConnectionType = MtGoxWebSocket | MtGoxHttp 
+    deriving( Read, Show, Eq )
+
+data MtGoxSettings = MtGoxSettings 
+                        { mtgoxWebSocket      :: MtGoxWSSettings
+                        , mtgoxHttp           :: MtGoxHttpSettings
+                        , mtgoxConnectionType :: MtGoxConnectionType
+                        }
+    deriving (Show, Read)
+
+instance Default MtGoxSettings where
+    def = MtGoxSettings 
+            { mtgoxWebSocket      = def
+            , mtgoxHttp           = def
+            , mtgoxConnectionType = MtGoxWebSocket
+            }

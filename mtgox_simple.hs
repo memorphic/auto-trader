@@ -2,9 +2,8 @@
 
 
 import AutoTrader.MtGox
-import AutoTrader.MtGox.Http (httpTicker) 
-import AutoTrader.MtGox.WebSocket (websocketTicker)
 import Control.Lens
+import Data.Default
 
 
 printLastPrice :: PriceHandler
@@ -14,7 +13,10 @@ printLastPrice prev curr = putStrLn $ show lastPrice ++ " ("++ show lastTime ++"
                      lastTime = curr ^. tkLastUpdateTime
 
 
-main :: IO ()
-main = httpTicker printLastPrice
---main = websocketTicker printLastPrice
+httpTicker :: IO ()
+httpTicker = ticker printLastPrice with { mtgoxConnectionType = MtGoxHttp }
+
+websocketTicker :: IO ()
+websocketTicker = ticker printLastPrice with { mtgoxConnectionType = MtGoxWebSocket }
+
 

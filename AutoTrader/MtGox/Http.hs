@@ -1,30 +1,43 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, NoMonomorphismRestriction #-}
 
-module AutoTrader.MtGox.Http 
-( 
-    httpTicker
+module AutoTrader.MtGox.Http
+( httpTicker
+, MtGoxHttpSettings (..)
+, module AutoTrader.MtGox.Http.Types
 )
 where
 
 
-import AutoTrader.MtGox
+import AutoTrader.MtGox.Types
+import AutoTrader.MtGox.Types.Instances
+import AutoTrader.MtGox.Types.Lenses
+import AutoTrader.MtGox.Http.Types
 
 import Network.HTTP.Conduit
 import Data.Aeson 
+import Data.Default
+import Data.Time.Units
 import Control.Applicative
 import Control.Monad (when, forever)
+import Control.Monad.Reader
 import Control.Lens
 import Control.Concurrent (threadDelay)
 import Control.Exception (handle, catch)
 import Control.Monad.State
 
-tickerURL = "https://data.mtgox.com/api/2/BTCUSD/money/ticker_fast" 
 
-type TickerApp = StateT (Maybe MtGoxTicker) IO ()
+type TickerApp m a = ReaderT MtGoxHttpSettings (StateT (Maybe MtGoxTicker) m) a
 
-liveTicker :: (Maybe MtGoxTicker -> MtGoxTicker -> IO ()) -> TickerApp
+
+runTickerApp :: Monad m => MtGoxHttpSettings -> TickerApp m a -> m a
+runTickerApp settings app = evalStateT (runReaderT app settings) Nothing
+
+
+liveTicker :: (Maybe MtGoxTicker -> MtGoxTicker -> IO ()) -> TickerApp IO ()
 liveTicker f = do
-    tickerTxt <- liftIO . retryOnTimeout . simpleHttp $ tickerURL
+    url <- httpURL <$> ask
+    timeout <- httpRetryDelayMicroSeconds <$> ask
+    tickerTxt <- liftIO . retryOnTimeout timeout . simpleHttp $ url
     let mTicker =  tickerData <$> decode tickerTxt
     prev        <- get
     case mTicker of
@@ -33,23 +46,29 @@ liveTicker f = do
                           liftIO $ when (mTicker /= prev) (f prev ticker)
    
 
-retryOnTimeout :: IO a -> IO a
-retryOnTimeout action = catch action $ \(_ :: HttpException) -> 
+type TimeoutMilliSeconds = Int
+
+retryOnTimeout :: TimeoutMilliSeconds -> IO a -> IO a
+retryOnTimeout timeout action = catch action $ \(_ :: HttpException) -> 
                             do putStrLn "Timed out. Trying again."
-                               threadDelay 5000000
+                               threadDelay timeout
                                action 
 
 
-httpTicker :: PriceHandler -> IO ()
-httpTicker handler = evalStateT app Nothing
+
+-- TODO: move settings into a ReaderT or similar. HttpPoller monad would probably work well.
+httpTicker :: PriceHandler -> MtGoxHttpSettings -> IO ()
+httpTicker handler settings = runTickerApp settings app
                        where app = do liftIO $ putStrLn "Starting HTTP polling."
                                       forever $ do
                                             liveTicker handler
-                                            liftIO $ threadDelay 2000000
-
+                                            liftIO . threadDelay $ httpRetryDelayMicroSeconds settings
 
 -- This data type and instance are a bit annoying. It's here because the ticker is wrapped in
 -- different object wrapper, depending on if it's polling or websocket
 data PollTickerResult = PollTickerResult { tickerData :: MtGoxTicker }
 instance FromJSON PollTickerResult where
     parseJSON (Object o) = PollTickerResult <$> o .: "data"
+    parseJSON _          = error "Invalid JSON input"
+
+

@@ -1,26 +1,26 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 
 module AutoTrader.MtGox.WebSocket
-( 
-    websocketTicker
+( websocketTicker
+, MtGoxWSSettings (..)
 )
 where
 
 
-import AutoTrader.MtGox
+import AutoTrader.MtGox.Types
+import AutoTrader.MtGox.Types.Instances
+import AutoTrader.MtGox.Types.Lenses
+import AutoTrader.MtGox.WebSocket.Types
+
 
 import qualified Network.WebSockets as WS
 import Data.Aeson 
+import Data.Default
 import Control.Applicative
 import Control.Monad (when, forever)
 import Control.Monad.Trans (liftIO)
 import Control.Monad.State
 
-
-wsHost   = "websocket.mtgox.com" 
-wsPort   = 80
-wsPath   = "/mtgox"
-wsOrigin = Just "http://www.memorphic.com"
 
 type TickerApp = StateT (Maybe MtGoxTicker) (WS.WebSockets WS.Hybi00) ()
 
@@ -39,13 +39,21 @@ liveTicker f = do
                           liftIO $ when (mTicker /= prev) (f prev ticker)
    
 
-websocketTicker :: PriceHandler -> IO ()
-websocketTicker handler = WS.connectWith wsHost wsPort wsPath wsOrigin Nothing app
+websocketTicker ::  PriceHandler -> MtGoxWSSettings -> IO ()
+websocketTicker handler settings = WS.connectWith (wsHost settings)
+                                                  (wsPort settings)
+                                                  (wsPath settings)
+                                                  (wsOrigin settings) Nothing app
                     where app = do liftIO $ putStrLn "Connected to Websocket."
                                    forever $ evalStateT (liveTicker handler) Nothing
 
+
+
+
 -- This data type and instance are a bit annoying. It's here because the ticker is wrapped in
 -- different object wrapper, depending on if it's polling or websocket
-data PollTickerResult = PollTickerResult { tickerData :: MtGoxTicker }
-instance FromJSON PollTickerResult where
-    parseJSON (Object o) = PollTickerResult <$> o .: "ticker"
+data WSTickerResult = WSTickerResult { tickerData :: MtGoxTicker }
+instance FromJSON WSTickerResult where
+    parseJSON (Object o) = WSTickerResult <$> o .: "ticker"
+    parseJSON _          = error "Invalid JSON input"
+
